@@ -1,16 +1,32 @@
+import { Picker } from '@react-native-picker/picker';
 import { useState } from 'react';
-import { Picker, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Timer from '../components/Timer';
 
 export default function HomeScreen() {
   const [category, setCategory] = useState('Ders');
-  const [duration, setDuration] = useState(25 * 60); // 25 dakika
+  const [duration, setDuration] = useState(25 * 60); // saniye cinsinden
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Odaklanma Zamanlayıcı</Text>
 
-      {/* Kategori seçimi */}
+      {/* SÜRE SEÇİCİ */}
+      <Text style={styles.label}>Süre Seç (Dakika)</Text>
+      <Picker
+        selectedValue={duration}
+        onValueChange={(v) => setDuration(v)}
+        style={styles.picker}
+      >
+        <Picker.Item label="5 dakika" value={5 * 60} />
+        <Picker.Item label="15 dakika" value={15 * 60} />
+        <Picker.Item label="25 dakika" value={25 * 60} />
+        <Picker.Item label="45 dakika" value={45 * 60} />
+        <Picker.Item label="60 dakika" value={60 * 60} />
+      </Picker>
+
+      {/* KATEGORİ */}
+      <Text style={styles.label}>Kategori</Text>
       <Picker
         selectedValue={category}
         onValueChange={(v) => setCategory(v)}
@@ -23,13 +39,13 @@ export default function HomeScreen() {
       </Picker>
 
       <Timer duration={duration} category={category} />
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  container: { flex: 1, padding: 20, marginTop: 50 },
+  title: { fontSize: 26, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
+  label: { fontSize: 16, marginTop: 10, marginBottom: 5 },
   picker: { height: 50, width: '100%' },
 });
