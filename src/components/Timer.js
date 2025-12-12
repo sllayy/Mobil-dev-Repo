@@ -10,92 +10,99 @@ export default function Timer({
 }) {
   const [time, setTime] = useState(duration);
   const [appState, setAppState] = useState(AppState.currentState);
-  const distractionsRef = useRef(0); // dikkat dağınıklığı sayısı
+  const distractionsRef = useRef(0);
 
-  //
-  // 1) Süre değişince timer sıfırlansın
-  //
+  //------------------------------
+  // 1) Süre değiştiğinde sıfırla
+  //------------------------------
   useEffect(() => {
     setTime(duration);
     distractionsRef.current = 0;
   }, [duration]);
 
-  //
-  // 2) Reset sinyali gelince tamamen reset
-  //
+  //------------------------------
+  // 2) Reset tetiklenince sıfırla
+  //------------------------------
   useEffect(() => {
     setTime(duration);
     distractionsRef.current = 0;
   }, [resetSignal]);
 
-  //
+  //------------------------------
   // 3) Sayaç motoru
-  //
+  //------------------------------
   useEffect(() => {
     let interval = null;
 
+    // Sayaç çalışırken her saniye azalt
     if (isRunning && time > 0) {
       interval = setInterval(() => setTime((t) => t - 1), 1000);
     }
 
-    // Sayaç bitti → seans özeti dön
+    // Sayaç bitti → HomeScreen’e sonuç gönder
     if (time === 0 && isRunning) {
-      if (onSessionEnd) {
-        onSessionEnd({
-          duration,
-          category,
-          distractions: distractionsRef.current,
-        });
-      }
+      onSessionEnd?.({
+        duration,
+        category,
+        distractions: distractionsRef.current,
+      });
     }
 
     return () => clearInterval(interval);
   }, [isRunning, time]);
 
-  //
-  // 4) AppState ile dikkat dağınıklığı tespiti
-  // background → distraction++
-  // otomatik duraklatma → isRunning dışarıdan durdurulmalı
-  //
+  //------------------------------
+  // 4) AppState — dikkat dağınıklığı takibi
+  //------------------------------
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (appState === 'active' && nextState === 'background') {
-        // Kullanıcı uygulamadan çıktı → dikkat dağınıklığı
-        distractionsRef.current += 1;
-
-        // Timer çalışıyorsa uyarı göster (UI kontrolü HomeScreen’de)
-        Alert.alert(
-          'Dikkat Dağıldı',
-          'Uygulamadan çıktın. Zamanlayıcı duraklatıldı.'
-        );
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      // AKTİF → ARKA PLAN
+      if (appState === "active" && nextState === "background") {
+        if (isRunning) {
+          distractionsRef.current += 1;      // Dikkat dağınıklığı++
+          onSessionEnd?.({                   // Timer'ı bitirmeden duraklat
+            duration: time,                  // kalan süre
+            category,
+            distractions: distractionsRef.current,
+          });
+          Alert.alert(
+            "Dikkat Dağıldı",
+            "Uygulamadan çıktığın için zamanlayıcı durduruldu."
+          );
+        }
       }
 
-      if (appState === 'background' && nextState === 'active') {
-        // Kullanıcı geri döndü
-        Alert.alert(
-          'Devam?',
-          'Odaklanma seansına kaldığın yerden devam etmek ister misin?'
-        );
+      // ARKA PLAN → AKTİF (geri dönüş)
+      if (appState === "background" && nextState === "active") {
+        if (isRunning) {
+          Alert.alert(
+            "Devam Etmek İster misin?",
+            "Kaldığın yerden devam edebilirsin.",
+            [
+              { text: "Tamam", onPress: () => {} },
+            ]
+          );
+        }
       }
 
       setAppState(nextState);
     });
 
     return () => subscription.remove();
-  }, [appState]);
+  }, [appState, isRunning, time]);
 
-  //
-  // 5) Formatlama
-  //
+  //------------------------------
+  // 5) Süre formatlama
+  //------------------------------
   const formatTime = (sec) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  //
+  //------------------------------
   // 6) UI
-  //
+  //------------------------------
   return (
     <View style={styles.container}>
       <Text style={styles.time}>{formatTime(time)}</Text>
@@ -108,7 +115,7 @@ export default function Timer({
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', marginVertical: 20 },
-  time: { fontSize: 48, fontWeight: 'bold', marginVertical: 10 },
+  container: { alignItems: "center", marginVertical: 20 },
+  time: { fontSize: 48, fontWeight: "bold", marginVertical: 10 },
   category: { fontSize: 18, marginTop: 5 },
 });

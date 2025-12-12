@@ -3,20 +3,20 @@ import { Picker } from '@react-native-picker/picker';
 import { useState } from 'react';
 import { Button, StyleSheet, Text, View } from 'react-native';
 import Timer from '../components/Timer';
+import { saveSession } from '../storage/sessions'; // ← EKLENDİ
 
 export default function HomeScreen() {
   const [category, setCategory] = useState('Ders');
-  const [duration, setDuration] = useState(25 * 60); // saniye
+  const [duration, setDuration] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [resetSignal, setResetSignal] = useState(false);
 
-  // seans özet bilgisi
   const [summary, setSummary] = useState(null);
 
-  const handleSessionEnd = (session) => {
-    // seans bittiğinde timer tarafından gönderilen özet
+  const handleSessionEnd = async (session) => {
     setIsRunning(false);
     setSummary(session);
+    await saveSession(session);   // ← EKLENDİ (ZORUNLU)
   };
 
   return (
@@ -29,7 +29,7 @@ export default function HomeScreen() {
         selectedValue={duration}
         onValueChange={(value) => {
           setDuration(value);
-          setSummary(null); // yeni süre seçildiğinde önceki özet silinsin
+          setSummary(null);
         }}
         enabled={!isRunning}
         style={styles.picker}
@@ -41,7 +41,7 @@ export default function HomeScreen() {
         <Picker.Item label="60 dakika" value={60 * 60} />
       </Picker>
 
-      {/* KATEGORİ SEÇİMİ */}
+      {/* KATEGORİ */}
       <Text style={styles.label}>Kategori</Text>
       <Picker
         selectedValue={category}
@@ -64,7 +64,7 @@ export default function HomeScreen() {
         category={category}
         isRunning={isRunning}
         resetSignal={resetSignal}
-        onSessionEnd={handleSessionEnd} // seans bittiğinde özet buraya gelecek
+        onSessionEnd={handleSessionEnd}
       />
 
       {/* BUTONLAR */}
@@ -76,7 +76,7 @@ export default function HomeScreen() {
           onPress={() => {
             setIsRunning(false);
             setSummary(null);
-            setResetSignal((prev) => !prev); // timer'a reset sinyali gönder
+            setResetSignal(prev => !prev);
           }}
         />
       </View>
@@ -99,16 +99,11 @@ export default function HomeScreen() {
   );
 }
 
-// STYLES
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, marginTop: 40 },
   title: { fontSize: 26, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
   label: { fontSize: 16, marginTop: 10, marginBottom: 5 },
   picker: { height: 50, width: '100%' },
-  buttonRow: {
-    marginTop: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-  },
+  buttonRow: { marginTop: 20, flexDirection: 'row', justifyContent: 'space-evenly' },
   summaryTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
 });
