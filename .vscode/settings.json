@@ -1,7 +1,29 @@
 {
+  // Kaydederken otomatik düzeltme ve düzenleme
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit",
-    "source.organizeImports": "explicit",
-    "source.sortMembers": "explicit"
-  }
+    "source.organizeImports": "explicit"
+  },
+
+  // Formatlama
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // Dosya yolu tamamlama iyileştirmesi
+  "javascript.suggest.autoImports": true,
+  "javascript.updateImportsOnFileMove.enabled": "always",
+
+  // React Native / Expo için syntax desteği
+  "javascript.validate.enable": false,
+  "typescript.validate.enable": false,
+
+  // Daha okunabilir font ve boşluk ayarları
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+
+  // Terminal default shell
+  "terminal.integrated.defaultProfile.osx": "zsh",
+
+  // Expo Tools extension öner
+  "extensions.ignoreRecommendations": false
 }

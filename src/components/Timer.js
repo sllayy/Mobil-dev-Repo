@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, AppState, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from "react";
+import { Alert, AppState, StyleSheet, Text, View } from "react-native";
 
 export default function Timer({
   duration,
@@ -7,40 +7,45 @@ export default function Timer({
   isRunning,
   resetSignal,
   onSessionEnd,
+  onForcePause, // HomeScreen tarafında zorunlu durdurma
 }) {
   const [time, setTime] = useState(duration);
-  const [appState, setAppState] = useState(AppState.currentState);
+
   const distractionsRef = useRef(0);
 
-  //------------------------------
+  // ❗ FIX: AppState react state değil REF olmalı
+  const appStateRef = useRef(AppState.currentState);
+
+  // ------------------------------
   // 1) Süre değiştiğinde sıfırla
-  //------------------------------
+  // ------------------------------
   useEffect(() => {
     setTime(duration);
     distractionsRef.current = 0;
   }, [duration]);
 
-  //------------------------------
+  // ------------------------------
   // 2) Reset tetiklenince sıfırla
-  //------------------------------
+  // ------------------------------
   useEffect(() => {
     setTime(duration);
     distractionsRef.current = 0;
   }, [resetSignal]);
 
-  //------------------------------
+  // ------------------------------
   // 3) Sayaç motoru
-  //------------------------------
+  // ------------------------------
   useEffect(() => {
     let interval = null;
 
-    // Sayaç çalışırken her saniye azalt
     if (isRunning && time > 0) {
-      interval = setInterval(() => setTime((t) => t - 1), 1000);
+      interval = setInterval(() => {
+        setTime((t) => t - 1);
+      }, 1000);
     }
 
-    // Sayaç bitti → HomeScreen’e sonuç gönder
-    if (time === 0 && isRunning) {
+    // ❗ FIX: sayaç 0’a düştüğü AN tetiklenmeli
+    if (isRunning && time === 0) {
       onSessionEnd?.({
         duration,
         category,
@@ -51,58 +56,52 @@ export default function Timer({
     return () => clearInterval(interval);
   }, [isRunning, time]);
 
-  //------------------------------
-  // 4) AppState — dikkat dağınıklığı takibi
-  //------------------------------
+  // ------------------------------
+  // 4) AppState — dikkat dağınıklığı tespiti (FIX'li versiyon)
+  // ------------------------------
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      // AKTİF → ARKA PLAN
-      if (appState === "active" && nextState === "background") {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      const prev = appStateRef.current;
+
+      // ACTIVE → BACKGROUND → +1 dikkat dağınıklığı
+      if (prev === "active" && nextState === "background") {
         if (isRunning) {
-          distractionsRef.current += 1;      // Dikkat dağınıklığı++
-          onSessionEnd?.({                   // Timer'ı bitirmeden duraklat
-            duration: time,                  // kalan süre
-            category,
-            distractions: distractionsRef.current,
-          });
+          distractionsRef.current += 1;
+
           Alert.alert(
-            "Dikkat Dağıldı",
+            "Dikkatin Dağıldı",
             "Uygulamadan çıktığın için zamanlayıcı durduruldu."
           );
+
+          onForcePause?.();
         }
       }
 
-      // ARKA PLAN → AKTİF (geri dönüş)
-      if (appState === "background" && nextState === "active") {
-        if (isRunning) {
-          Alert.alert(
-            "Devam Etmek İster misin?",
-            "Kaldığın yerden devam edebilirsin.",
-            [
-              { text: "Tamam", onPress: () => {} },
-            ]
-          );
-        }
+      // BACKGROUND → ACTIVE (geri dönüş)
+      if (prev === "background" && nextState === "active") {
+        Alert.alert(
+          "Devam Et?",
+          "Seansa kaldığın yerden devam etmek ister misin?",
+          [{ text: "Tamam" }]
+        );
       }
 
-      setAppState(nextState);
+      // ❗ FIX: state daima güncellenmeli
+      appStateRef.current = nextState;
     });
 
-    return () => subscription.remove();
-  }, [appState, isRunning, time]);
+    return () => sub.remove();
+  }, [isRunning]);
 
-  //------------------------------
-  // 5) Süre formatlama
-  //------------------------------
+  // ------------------------------
+  // 5) Format
+  // ------------------------------
   const formatTime = (sec) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
-  //------------------------------
-  // 6) UI
-  //------------------------------
   return (
     <View style={styles.container}>
       <Text style={styles.time}>{formatTime(time)}</Text>

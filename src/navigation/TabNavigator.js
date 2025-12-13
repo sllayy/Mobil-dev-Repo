@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import HomeScreen from '../screens/HomeScreen';
@@ -9,10 +10,25 @@ export default function TabNavigator() {
   return (
     <NavigationContainer>
       <Tab.Navigator
-        screenOptions={{
+        screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarActiveTintColor: '#1e90ff',  // aktif sekme rengi
-          tabBarInactiveTintColor: '#888',   // pasif sekme rengi
+
+          // Sekme ikonları
+          tabBarIcon: ({ color, size }) => {
+            let iconName;
+
+            if (route.name === 'Zamanlayıcı') {
+              iconName = 'timer-outline';
+            } else if (route.name === 'Raporlar') {
+              iconName = 'stats-chart-outline';
+            }
+
+            return <Ionicons name={iconName} size={22} color={color} />;
+          },
+
+          tabBarActiveTintColor: '#1e90ff',
+          tabBarInactiveTintColor: '#888',
+
           tabBarStyle: {
             backgroundColor: '#fff',
             borderTopWidth: 1,
@@ -20,11 +36,12 @@ export default function TabNavigator() {
             height: 60,
             paddingBottom: 6,
           },
+
           tabBarLabelStyle: {
             fontSize: 12,
             fontWeight: '600',
           },
-        }}
+        })}
       >
         <Tab.Screen
           name="Zamanlayıcı"
