@@ -11,11 +11,18 @@ export default function TabNavigator() {
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: '#1e90ff',
-          tabBarInactiveTintColor: 'gray',
+          tabBarActiveTintColor: '#1e90ff',  // aktif sekme rengi
+          tabBarInactiveTintColor: '#888',   // pasif sekme rengi
           tabBarStyle: {
-            paddingBottom: 6,
+            backgroundColor: '#fff',
+            borderTopWidth: 1,
+            borderTopColor: '#e0e0e0',
             height: 60,
+            paddingBottom: 6,
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '600',
           },
         }}
       >
@@ -24,6 +31,7 @@ export default function TabNavigator() {
           component={HomeScreen}
           options={{ tabBarLabel: 'Zamanlayıcı' }}
         />
+
         <Tab.Screen
           name="Raporlar"
           component={ReportsScreen}
