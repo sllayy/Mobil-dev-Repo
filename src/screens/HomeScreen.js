@@ -10,12 +10,11 @@ export default function HomeScreen() {
   const [duration, setDuration] = useState(25 * 60);
 
   const [isRunning, setIsRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false); // ← EKLENDİ
+  const [isPaused, setIsPaused] = useState(false);
   const [resetSignal, setResetSignal] = useState(false);
 
   const [summary, setSummary] = useState(null);
 
-  // Timer bittiğinde çalışır
   const handleSessionEnd = async (session) => {
     setIsRunning(false);
     setIsPaused(false);
@@ -23,16 +22,15 @@ export default function HomeScreen() {
     await saveSession(session);
   };
 
-  // AppState → background olunca Timer burayı çağırıyor
   const handleForcePause = () => {
     setIsRunning(false);
     setIsPaused(true);
   };
 
-  // Kullanıcı "Bitir" derse
   const finishSession = () => {
     setIsRunning(false);
     setIsPaused(false);
+
     setSummary({
       duration,
       category,
@@ -44,9 +42,10 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Odaklanma Zamanlayıcı</Text>
 
-      {/* CARD */}
+      {/* --- CARD: Duration + Category --- */}
       <View style={styles.card}>
         <Text style={styles.label}>Süre Seç</Text>
+
         <View style={styles.pickerWrapper}>
           <Picker
             selectedValue={duration}
@@ -56,6 +55,8 @@ export default function HomeScreen() {
             }}
             enabled={!isRunning && !isPaused}
             style={styles.picker}
+            itemStyle={{ color: "#000" }} // ← iOS yazı rengi
+            mode="dropdown"
           >
             <Picker.Item label="5 dakika" value={5 * 60} />
             <Picker.Item label="15 dakika" value={15 * 60} />
@@ -66,6 +67,7 @@ export default function HomeScreen() {
         </View>
 
         <Text style={styles.label}>Kategori</Text>
+
         <View style={styles.pickerWrapper}>
           <Picker
             selectedValue={category}
@@ -75,6 +77,8 @@ export default function HomeScreen() {
             }}
             enabled={!isRunning && !isPaused}
             style={styles.picker}
+            itemStyle={{ color: "#000" }} // ← iOS yazı rengi
+            mode="dropdown"
           >
             <Picker.Item label="Ders" value="Ders" />
             <Picker.Item label="Kodlama" value="Kodlama" />
@@ -94,12 +98,12 @@ export default function HomeScreen() {
         onForcePause={handleForcePause}
       />
 
-      {/* BUTTON LOGIC */}
+      {/* ---------------- BUTTON LOGIC ---------------- */}
 
       {/* 1️⃣ BAŞLAMADAN ÖNCE */}
       {!isRunning && !isPaused && (
         <Pressable
-          style={[styles.btn, styles.btnStart]}
+          style={[styles.btnSingle, styles.btnStart]}
           onPress={() => setIsRunning(true)}
         >
           <Text style={styles.btnText}>Başlat</Text>
@@ -152,7 +156,7 @@ export default function HomeScreen() {
 
       {/* SIFIRLA */}
       <Pressable
-        style={[styles.btn, styles.btnReset]}
+        style={[styles.btnSingle, styles.btnReset]}
         onPress={() => {
           setIsRunning(false);
           setIsPaused(false);
@@ -162,28 +166,11 @@ export default function HomeScreen() {
       >
         <Text style={styles.btnText}>Sıfırla</Text>
       </Pressable>
-
-      {/* SUMMARY */}
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Seans Özeti</Text>
-        {summary ? (
-          <>
-            <Text style={styles.summaryItem}>
-              Süre: {summary.duration / 60} dk
-            </Text>
-            <Text style={styles.summaryItem}>Kategori: {summary.category}</Text>
-            <Text style={styles.summaryItem}>
-              Dikkat Dağınıklığı: {summary.distractions}
-            </Text>
-          </>
-        ) : (
-          <Text style={styles.noSummary}>Henüz tamamlanmış seans yok.</Text>
-        )}
-      </View>
     </View>
   );
 }
 
+// --- STYLES ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -191,12 +178,14 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     backgroundColor: "#f5f7fa",
   },
+
   title: {
     fontSize: 28,
     fontWeight: "700",
     textAlign: "center",
     marginBottom: 25,
   },
+
   card: {
     backgroundColor: "#fff",
     padding: 20,
@@ -207,41 +196,59 @@ const styles = StyleSheet.create({
     elevation: 3,
     marginBottom: 20,
   },
-  label: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
-  pickerWrapper: {
-    backgroundColor: "#f0f0f0",
-    borderRadius: 10,
-    marginBottom: 12,
+
+  label: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
   },
-  picker: { height: 45, width: "100%" },
+
+  pickerWrapper: {
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    marginBottom: 12,
+    overflow: "hidden", // ← iOS'ta kenar sorunu yok
+  },
+
+  picker: {
+    height: 55,
+    width: "100%",
+  },
+
   actionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginVertical: 10,
   },
+
   btn: {
     flex: 1,
-    paddingVertical: 14,
-    marginHorizontal: 6,
-    borderRadius: 10,
+    paddingVertical: 10,
+    marginHorizontal: 5,
+    borderRadius: 8,
     alignItems: "center",
   },
+
+  btnSingle: {
+    width: "60%",
+    alignSelf: "center",
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginVertical: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   btnStart: { backgroundColor: "#4CAF50" },
   btnPause: { backgroundColor: "#ff9800" },
   btnFinish: { backgroundColor: "#1976D2" },
-  btnReset: { backgroundColor: "#e53935", marginTop: 10 },
-  btnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  summaryCard: {
-    backgroundColor: "#fff",
-    padding: 18,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-    marginTop: 20,
+  btnReset: { backgroundColor: "#e53935" },
+
+  btnText: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 14,
   },
-  summaryTitle: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
-  summaryItem: { fontSize: 15, marginVertical: 3 },
-  noSummary: { fontSize: 14, color: "#777" },
 });
