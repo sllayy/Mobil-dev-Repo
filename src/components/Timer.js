@@ -1,101 +1,92 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, AppState, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function Timer({
-  duration,
+  duration, // toplam süre (sn)
   category,
   isRunning,
   resetSignal,
-  onSessionEnd,
-  onForcePause, // HomeScreen tarafında zorunlu durdurma
+  distractions, // sadece gösterim
+  onTick, // (timeLeft) => void
+  onSessionEnd, // ({ duration, remainingTime, category, distractions })
 }) {
   const [time, setTime] = useState(duration);
 
-  const distractionsRef = useRef(0);
+  const intervalRef = useRef(null);
+  const finishedRef = useRef(false);
 
-  // ❗ FIX: AppState react state değil REF olmalı
-  const appStateRef = useRef(AppState.currentState);
-
-  // ------------------------------
-  // 1) Süre değiştiğinde sıfırla
-  // ------------------------------
+  /* -----------------------------------
+     RESET (duration veya resetSignal)
+  ----------------------------------- */
   useEffect(() => {
     setTime(duration);
-    distractionsRef.current = 0;
-  }, [duration]);
+    finishedRef.current = false;
+    onTick?.(duration);
+  }, [duration, resetSignal]);
 
-  // ------------------------------
-  // 2) Reset tetiklenince sıfırla
-  // ------------------------------
+  /* -----------------------------------
+     TIMER MOTOR
+     - SADECE isRunning'e bakar
+     - TEK interval
+  ----------------------------------- */
   useEffect(() => {
-    setTime(duration);
-    distractionsRef.current = 0;
-  }, [resetSignal]);
-
-  // ------------------------------
-  // 3) Sayaç motoru
-  // ------------------------------
-  useEffect(() => {
-    let interval = null;
-
-    if (isRunning && time > 0) {
-      interval = setInterval(() => {
-        setTime((t) => t - 1);
-      }, 1000);
+    if (!isRunning) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
     }
 
-    // ❗ FIX: sayaç 0’a düştüğü AN tetiklenmeli
-    if (isRunning && time === 0) {
-      onSessionEnd?.({
-        duration,
-        category,
-        distractions: distractionsRef.current,
-      });
-    }
+    if (intervalRef.current) return;
 
-    return () => clearInterval(interval);
-  }, [isRunning, time]);
+    intervalRef.current = setInterval(() => {
+      setTime((prev) => Math.max(prev - 1, 0));
+    }, 1000);
 
-  // ------------------------------
-  // 4) AppState — dikkat dağınıklığı tespiti (FIX'li versiyon)
-  // ------------------------------
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (nextState) => {
-      const prev = appStateRef.current;
-
-      // ACTIVE → BACKGROUND → +1 dikkat dağınıklığı
-      if (prev === "active" && nextState === "background") {
-        if (isRunning) {
-          distractionsRef.current += 1;
-
-          Alert.alert(
-            "Dikkatin Dağıldı",
-            "Uygulamadan çıktığın için zamanlayıcı durduruldu."
-          );
-
-          onForcePause?.();
-        }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
-
-      // BACKGROUND → ACTIVE (geri dönüş)
-      if (prev === "background" && nextState === "active") {
-        Alert.alert(
-          "Devam Et?",
-          "Seansa kaldığın yerden devam etmek ister misin?",
-          [{ text: "Tamam" }]
-        );
-      }
-
-      // ❗ FIX: state daima güncellenmeli
-      appStateRef.current = nextState;
-    });
-
-    return () => sub.remove();
+    };
   }, [isRunning]);
 
-  // ------------------------------
-  // 5) Format
-  // ------------------------------
+  /* -----------------------------------
+     HER SANİYE DIŞARI BİLDİR
+     ⚠️ EFFECT → render içinde setState yok
+  ----------------------------------- */
+  useEffect(() => {
+    onTick?.(time);
+  }, [time]);
+
+  /* -----------------------------------
+     SÜRE BİTİNCE
+     ⚠️ TEK SEFER ÇAĞRILIR
+  ----------------------------------- */
+  useEffect(() => {
+    if (!isRunning) return;
+    if (time !== 0) return;
+    if (finishedRef.current) return;
+
+    finishedRef.current = true;
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    onSessionEnd?.({
+      duration,
+      remainingTime: 0,
+      category,
+      distractions,
+    });
+  }, [time, isRunning]);
+
+  /* -----------------------------------
+     FORMAT
+  ----------------------------------- */
   const formatTime = (sec) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -105,16 +96,24 @@ export default function Timer({
   return (
     <View style={styles.container}>
       <Text style={styles.time}>{formatTime(time)}</Text>
-      <Text style={styles.category}>Kategori: {category}</Text>
-      <Text style={styles.category}>
-        Dikkat Dağınıklığı: {distractionsRef.current}
-      </Text>
+      <Text style={styles.info}>Kategori: {category}</Text>
+      <Text style={styles.info}>Dikkat Dağınıklığı: {distractions}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: "center", marginVertical: 20 },
-  time: { fontSize: 48, fontWeight: "bold", marginVertical: 10 },
-  category: { fontSize: 18, marginTop: 5 },
+  container: {
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  time: {
+    fontSize: 48,
+    fontWeight: "bold",
+    marginVertical: 10,
+  },
+  info: {
+    fontSize: 18,
+    marginTop: 4,
+  },
 });

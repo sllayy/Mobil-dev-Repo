@@ -1,7 +1,14 @@
 // @ts-nocheck
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useState } from "react";
-import { Dimensions, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import {
+  Dimensions,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { BarChart, PieChart } from "react-native-chart-kit";
 
 import {
@@ -12,43 +19,103 @@ import {
   getTotalDistractions,
 } from "../storage/sessions";
 
+/* --------------------------------------------------
+   RESPONSIVE WIDTH
+-------------------------------------------------- */
 const screenWidth = Dimensions.get("window").width;
-const chartWidth = Platform.OS === "web" ? Math.min(screenWidth - 20, 500) : screenWidth - 20;
+const baseWidth =
+  Platform.OS === "web" ? Math.min(screenWidth - 32, 520) : screenWidth - 32;
+
+/* --------------------------------------------------
+   CHART CONFIG
+-------------------------------------------------- */
+const chartConfig = {
+  backgroundGradientFrom: "#ffffff",
+  backgroundGradientTo: "#ffffff",
+  decimalPlaces: 0,
+  color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+  labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+  propsForBackgroundLines: { strokeWidth: 0 },
+  propsForLabels: { fontSize: 11 },
+};
 
 export default function ReportsScreen() {
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [allTimeMinutes, setAllTimeMinutes] = useState(0);
   const [totalDistractions, setTotalDistractions] = useState(0);
-
   const [weekData, setWeekData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
 
-  async function loadData() {
-    setTodayMinutes(await getTodayTotalMinutes());
-    setAllTimeMinutes(await getAllTimeMinutes());
-    setTotalDistractions(await getTotalDistractions());
-    setWeekData(await getLast7DaysChartData());
-    setCategoryData(await getCategoryDistribution());
-  }
+  const loadData = useCallback(async () => {
+    const [t, all, dist, week, cat] = await Promise.all([
+      getTodayTotalMinutes(),
+      getAllTimeMinutes(),
+      getTotalDistractions(),
+      getLast7DaysChartData(),
+      getCategoryDistribution(),
+    ]);
+
+    setTodayMinutes(t || 0);
+    setAllTimeMinutes(all || 0);
+    setTotalDistractions(dist || 0);
+    setWeekData(Array.isArray(week) ? week : []);
+    setCategoryData(Array.isArray(cat) ? cat : []);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [])
+    }, [loadData])
   );
 
+  /* --------------------------------------------------
+     BAR DATA
+-------------------------------------------------- */
+  const barData = useMemo(() => {
+    return {
+      labels: weekData.map((d) => d.date), // MM-DD
+      datasets: [{ data: weekData.map((d) => d.minutes || 0) }],
+    };
+  }, [weekData]);
+
+  /* --------------------------------------------------
+     PIE DATA (%)
+-------------------------------------------------- */
+  const pieData = useMemo(() => {
+    const total = categoryData.reduce((s, c) => s + (c.duration || 0), 0);
+
+    return categoryData
+      .map((c) => {
+        const pct = total ? Math.round((c.duration / total) * 100) : 0;
+        return {
+          name: `${c.name} %${pct}`,
+          population: c.duration,
+          color: c.color,
+          legendFontColor: "#333",
+          legendFontSize: 12,
+        };
+      })
+      .filter((x) => x.population > 0);
+  }, [categoryData]);
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.title}>Raporlar</Text>
 
-      {/* ÖZETLER */}
+      {/* GENEL İSTATİSTİKLER */}
       <View style={styles.card}>
-        <Text style={styles.cardLabel}>Bugünkü Odak Süresi</Text>
+        <Text style={styles.cardLabel}>Bugün Toplam Odaklanma Süresi</Text>
         <Text style={styles.cardValue}>{todayMinutes} dk</Text>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardLabel}>Toplam Odak Süresi</Text>
+        <Text style={styles.cardLabel}>
+          Tüm Zamanların Toplam Odaklanma Süresi
+        </Text>
         <Text style={styles.cardValue}>{allTimeMinutes} dk</Text>
       </View>
 
@@ -57,72 +124,82 @@ export default function ReportsScreen() {
         <Text style={styles.cardValue}>{totalDistractions}</Text>
       </View>
 
-      {/* 7 GÜN */}
-      <Text style={styles.chartTitle}>Son 7 Gün Odak Süresi</Text>
+      {/* BAR CHART */}
+      <Text style={styles.chartTitle}>Son 7 Gün Odaklanma Süresi (dk)</Text>
 
       {weekData.length > 0 && (
-        <BarChart
-          data={{
-            labels: weekData.map((d) => d.date),
-            datasets: [{ data: weekData.map((d) => d.minutes) }],
-          }}
-          width={chartWidth}
-          height={250}
-          fromZero
-          chartConfig={chartConfig}
-          style={styles.chart}
-        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.chartWrap}>
+            <BarChart
+              data={barData}
+              width={Math.max(baseWidth, 520)} // 🔥 kritik
+              height={260}
+              fromZero
+              chartConfig={chartConfig}
+              style={styles.chart}
+              withInnerLines={false}
+              yAxisSuffix=" dk"
+            />
+          </View>
+        </ScrollView>
       )}
 
-      {/* KATEGORİ */}
+      {/* PIE CHART */}
       <Text style={styles.chartTitle}>Kategori Dağılımı</Text>
 
-      {categoryData.length > 0 && (
-        <PieChart
-          data={categoryData.map((c) => ({
-            name: c.name,
-            population: c.duration,
-            color: c.color,
-          }))}
-          width={chartWidth}
-          height={260}
-          accessor="population"
-          backgroundColor="transparent"
-          hasLegend={true}
-        />
+      {pieData.length > 0 && (
+        <View style={styles.chartWrap}>
+          <PieChart
+            data={pieData}
+            width={baseWidth}
+            height={300}
+            accessor="population"
+            backgroundColor="transparent"
+            chartConfig={chartConfig}
+            paddingLeft="10"
+            absolute
+          />
+        </View>
       )}
+
+      <View style={{ height: 20 }} />
     </ScrollView>
   );
 }
 
-const chartConfig = {
-  backgroundGradientFrom: "#fff",
-  backgroundGradientTo: "#fff",
-  decimalPlaces: 0,
-  color: () => `#000`,
-  labelColor: () => "#000",
-};
-
+/* --------------------------------------------------
+   STYLES
+-------------------------------------------------- */
 const styles = StyleSheet.create({
-  container: { padding: 12, backgroundColor: "#fafafa" },
+  container: { backgroundColor: "#fafafa" },
+  content: { padding: 16, paddingBottom: 24 },
+
   title: {
     fontSize: 26,
-    fontWeight: "bold",
+    fontWeight: "800",
     textAlign: "center",
-    marginVertical: 20,
+    marginVertical: 16,
+    color: "#111",
   },
+
   card: {
     backgroundColor: "#fff",
     padding: 18,
     borderRadius: 12,
     marginVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 3,
   },
-  cardLabel: { fontSize: 16, color: "#555" },
-  cardValue: { fontSize: 22, fontWeight: "bold", color: "#111" },
-  chartTitle: { fontSize: 18, fontWeight: "bold", marginTop: 28, marginBottom: 12 },
+  cardLabel: { fontSize: 15, color: "#555", fontWeight: "600" },
+  cardValue: { fontSize: 24, fontWeight: "900", color: "#111", marginTop: 6 },
+
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 26,
+    marginBottom: 12,
+    color: "#111",
+  },
+
+  chartWrap: { paddingRight: 16 },
   chart: { borderRadius: 12 },
 });

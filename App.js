@@ -1,5 +1,12 @@
-import TabNavigator from './src/navigation/TabNavigator';
+import { NavigationContainer } from "@react-navigation/native";
+import TabNavigator from "./src/navigation/TabNavigator";
+
+console.log("APP.JS ÇALIŞIYOR");
 
 export default function App() {
-  return <TabNavigator />;
+  return (
+    <NavigationContainer>
+      <TabNavigator />
+    </NavigationContainer>
+  );
 }
